@@ -1,12 +1,12 @@
 package providers
 
 import (
-	"app/api"
-	"app/config"
 	"context"
 	"fmt"
+	"github.com/codeselim/go-webservice-places-provider/api"
+	"github.com/codeselim/go-webservice-places-provider/config"
+	"github.com/codeselim/go-webservice-places-provider/log"
 	"googlemaps.github.io/maps"
-	"log"
 )
 
 /**
@@ -16,32 +16,42 @@ import (
  */
 
 type googlePlacesProvider struct {
-	providerLabel ProviderLabel
-	providerConfig ProviderConfig
+	providerLabel  ProviderLabel
+	providerConfig *ProviderConfig
+	mapsClient     *maps.Client
 }
 
 // Constructor
-func NewGoogleLocationProvider() Provider {
+func NewGoogleLocationProvider(providerConfig *ProviderConfig) Provider {
+	if providerConfig == nil {
+		log.GetLogger().Panic("ProviderConfig should be provided")
+	}
+
+	httpClient := getHttpClientFromConfig(providerConfig)
+	apiKey := config.Config().GooglePlacesApiKey
+	client, err := maps.NewClient(maps.WithAPIKey(apiKey), maps.WithHTTPClient(httpClient))
+
+	if err != nil {
+		log.GetLogger().Panic("Couldn't create maps client")
+	}
+
 	return &googlePlacesProvider{
-		providerLabel: GooglePlacesProviderLabel,
+		providerLabel:  GooglePlacesProviderLabel,
+		providerConfig: providerConfig,
+		mapsClient:     client,
 	}
 }
 
 func (g *googlePlacesProvider) GetPlacesByQuery(ctx context.Context, request PlaceSearchRequest) (places api.Places, err error) {
-	log.Print(g.providerConfig.Timeout)
-
-	var client *maps.Client
-	httpClient := getHttpClientFromConfig(&g.providerConfig)
-	apiKey := config.GooglePlacesApiKey
-	client, err = maps.NewClient(maps.WithAPIKey(apiKey), maps.WithHTTPClient(httpClient))
-	if err != nil {
-		return api.Places{}, err
+	language := config.DefaultGooglePlacesLanguage
+	if g.providerConfig.Language != "" {
+		language = g.providerConfig.Language
 	}
 
 	searchParam := &maps.PlaceAutocompleteRequest{
 		Input:    request.InputString,
-		Language: config.DefaultGooglePlacesLanguage,
-		Radius:   uint(config.DefaultSearchRadius),
+		Language: language,
+		Radius:   uint(getSearchRadiusFromConfig(g.providerConfig)),
 		Types:    "establishment",
 	}
 
@@ -52,12 +62,12 @@ func (g *googlePlacesProvider) GetPlacesByQuery(ctx context.Context, request Pla
 		}
 	}
 
-	resp, err := client.PlaceAutocomplete(context.Background(), searchParam)
+	resp, err := g.mapsClient.PlaceAutocomplete(context.Background(), searchParam)
 	if err != nil {
 		return api.Places{}, err
 	}
 
-	apiPlaces := g.googlePlacesToApiPlacesConverter(resp)
+	apiPlaces := googlePlacesToApiPlacesConverter(resp)
 	return apiPlaces, nil
 }
 
@@ -66,19 +76,18 @@ func (g *googlePlacesProvider) GetPlaceDetails(ctx context.Context, placeId stri
 	return api.PlaceDetails{ID: placeId, Name: "John Smith", SomeText: "Endpoint Not implemented yet! Take it easy!"}, nil
 }
 
-func (g *googlePlacesProvider) WithConfig(config ProviderConfig) Provider {
-	g.providerConfig = config
-	return g
+func (g *googlePlacesProvider) GetProviderLabel() ProviderLabel {
+	return g.providerLabel
 }
 
 // Converter Google Models -> API Models
-func (g *googlePlacesProvider) googlePlacesToApiPlacesConverter(resp maps.AutocompleteResponse) api.Places {
+func googlePlacesToApiPlacesConverter(resp maps.AutocompleteResponse) api.Places {
 	places := api.Places{}
 	Predictions := resp.Predictions
 
 	for _, prediction := range Predictions {
 		place := api.Place{
-			Provider: string(g.providerLabel),
+			Provider: string(GooglePlacesProviderLabel),
 			Address:  prediction.StructuredFormatting.SecondaryText, //relying on the secondary text since the search types is fixed on establishments
 			Name:     prediction.StructuredFormatting.MainText,
 			ID:       prediction.PlaceID,

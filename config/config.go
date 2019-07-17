@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -13,13 +14,34 @@ const (
 	DefaultSearchRadius         = 100 //km
 	DefaultGooglePlacesLanguage = "en"
 	DefaultHttpServerPort       = "8081"
-	DefaultProviderTimeout		= 10 * time.Second
+	DefaultProviderTimeout      = 10 * time.Second
+	MaxAllowedSearchRadius      = 50
+	DefaultLoggingLevel         = "info"
 )
 
-var GooglePlacesApiKey = os.Getenv("GOOGLE_PLACES_API_KEY")
-var FoursquareClientID = os.Getenv("FOURSQUARE_CLIENT_ID")
-var FoursquareClientSecret = os.Getenv("FOURSQUARE_CLIENT_SECRET")
+type configSchema struct {
+	GooglePlacesApiKey     string
+	FoursquareClientID     string
+	FoursquareClientSecret string
+	//sync.RWMutex : Mutexes can be added if config would be extended to add write actions
+}
+
+var (
+	c    *configSchema
+	once sync.Once
+)
+
+func Config() *configSchema {
+	once.Do(func() { //https://golang.org/src/sync/once.go?s=1137:1164#L25
+		c = &configSchema{
+			GooglePlacesApiKey:     os.Getenv("GOOGLE_PLACES_API_KEY"),
+			FoursquareClientID:     os.Getenv("FOURSQUARE_CLIENT_ID"),
+			FoursquareClientSecret: os.Getenv("FOURSQUARE_CLIENT_SECRET"),
+		}
+	})
+	return c
+}
 
 func init() {
-	log.Print("configuration loaded...")
+	log.Print("Configuration loaded...")
 }

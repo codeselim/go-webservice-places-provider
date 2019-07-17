@@ -44,6 +44,27 @@ By the fault, The container exposes the service on port **8081**. However you ca
 
 ## API usage
 
+status endpoint
+-------------- 
+Request **GET host:port/v1/status**
+
+Returns the API status. Such endpoints can be used for readiness/liveness probes. 
+
+Answer:
+
+Status code 200
+
+```$xslt
+{
+"message": (string),
+"state" (string),  
+}
+```
+ 
+"state" can be only have the value "ACTIVE" for the time being. 
+
+places endpoint
+--------------
 Request **GET host:port/v1/places**
 
 ### Query Parameters
@@ -152,6 +173,8 @@ This application relies on minimal Golang libraries in order to build the needed
 
 5) package **config** : a basic package to load application configuration. Usually (especially in a microservice architecture) your service can be connected to a configuration service. In other setup(s)) config-maps/files can be mounted to your container and can be used for an application configuration (as an example, see Kubernetes'[configmaps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)).
 
+6) There is a simple Makefile in this repository to automate casual tasks (test, build..). However, it is better to hook a CI tool with this repo (out of this demo'scope)
+
 Note on the implementation:
 
 * Firing calls and getting places from different providers is done in parallel using Go routines. Please refer to the `handlers > handlers.go` 
@@ -169,9 +192,12 @@ You need a local [Golang setup](https://golang.org/doc/install).
 For example:
 
 ```sh
-docker run -it --rm -p 8081:8081 --volume "$PWD":/go/src/app --workdir /go/src/app golang:1.11-alpine go run places.go
+docker run -it --rm -p 8081:8081 --volume "$PWD":/go/src/app --workdir /go/src/app golang:1.11-alpine go run places.go [...other args]
 ```
 
-## notes
-Golang with locale paths for project source code: (must be in a src folder) https://github.com/golang/dep/issues/911
+## notes & future improvements
+
+* In case you are using local Golang installation with locale paths for project source code: (must be in a src folder) https://github.com/golang/dep/issues/911
+* [Improve]: add additional general handlers like Compress and CORS : straight forward implementation. Look in Gorilla read-made [handlers](https://github.com/gorilla/handlers)
+* [Improve]: Extend tests for a higher code coverage (due to time constraints). The tests can already demonstrate how to test handlers, how to mock dependencies and how to imitate http calls. 
 

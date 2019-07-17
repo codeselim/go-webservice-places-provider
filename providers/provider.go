@@ -1,9 +1,9 @@
 package providers
 
 import (
-	"app/api"
-	"app/config"
 	"context"
+	"github.com/codeselim/go-webservice-places-provider/api"
+	"github.com/codeselim/go-webservice-places-provider/config"
 	"net/http"
 	"time"
 )
@@ -17,7 +17,9 @@ const (
 )
 
 type ProviderConfig struct {
-	Timeout time.Duration //configures a timeout to short-circuits long-running connections
+	Timeout      time.Duration //configures a timeout to short-circuits long-running connections
+	Language     string
+	SearchRadius int //can be also provided as query param instead of internal config
 	//... extend following requirements
 }
 
@@ -34,17 +36,25 @@ type Location struct {
 type Provider interface {
 	GetPlacesByQuery(ctx context.Context, request PlaceSearchRequest) (api.Places, error)
 	GetPlaceDetails(ctx context.Context, placeId string) (api.PlaceDetails, error)
-	WithConfig(config ProviderConfig) Provider
+	GetProviderLabel() ProviderLabel
 	//... extend interface
 }
 
-//helper function
+//helper functions
 func getHttpClientFromConfig(providerConfig *ProviderConfig) *http.Client {
 	timeout := config.DefaultProviderTimeout
-	if providerConfig != nil {
+	if providerConfig != nil && providerConfig.Timeout > 0 {
 		timeout = providerConfig.Timeout
 	}
 	return &http.Client{
 		Timeout: timeout,
 	}
+}
+
+func getSearchRadiusFromConfig(providerConfig *ProviderConfig) int {
+	radius := config.DefaultSearchRadius
+	if providerConfig.SearchRadius != 0 && providerConfig.SearchRadius < config.MaxAllowedSearchRadius {
+		radius = providerConfig.SearchRadius
+	}
+	return radius
 }

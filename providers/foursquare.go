@@ -1,12 +1,12 @@
 package providers
 
 import (
-	"app/api"
-	"app/config"
 	"context"
 	"fmt"
+	"github.com/codeselim/go-webservice-places-provider/api"
+	"github.com/codeselim/go-webservice-places-provider/config"
+	"github.com/codeselim/go-webservice-places-provider/log"
 	"github.com/peppage/foursquarego"
-	"log"
 )
 
 /**
@@ -23,24 +23,34 @@ const (
 )
 
 type foursquareProvider struct {
-	providerLabel ProviderLabel
-	providerConfig ProviderConfig
+	providerLabel  ProviderLabel
+	providerConfig *ProviderConfig
+	fsClient       *foursquarego.Client
 }
 
 // Constructor
-func NewFoursquareProvider() Provider {
+func NewFoursquareProvider(providerConfig *ProviderConfig) Provider {
+	if providerConfig == nil {
+		log.GetLogger().Panic("ProviderConfig should be provided")
+	}
+
+	httpClient := getHttpClientFromConfig(providerConfig)
+	client := foursquarego.NewClient(httpClient,
+		"foursquare",
+		config.Config().FoursquareClientID,
+		config.Config().FoursquareClientSecret, "")
+
 	return &foursquareProvider{
-		providerLabel: FoursquareLabel,
+		providerLabel:  FoursquareLabel,
+		providerConfig: providerConfig,
+		fsClient:       client,
 	}
 }
 
 func (f *foursquareProvider) GetPlacesByQuery(ctx context.Context, request PlaceSearchRequest) (places api.Places, err error) {
-	log.Print(f.providerConfig.Timeout)
-	httpClient := getHttpClientFromConfig(&f.providerConfig)
-	client := foursquarego.NewClient(httpClient, "foursquare", config.FoursquareClientID, config.FoursquareClientSecret, "")
 
 	searchParam := &foursquarego.VenueSuggestParams{
-		Radius: config.DefaultSearchRadius,
+		Radius: getSearchRadiusFromConfig(f.providerConfig),
 		Query:  request.InputString,
 	}
 
@@ -48,16 +58,16 @@ func (f *foursquareProvider) GetPlacesByQuery(ctx context.Context, request Place
 		searchParam.LatLong = fmt.Sprintf("%.6f,%.6f", request.Location.Lat, request.Location.Lng)
 	} else {
 		// since we are obliged ot use a location with the search. In case Lat/Lng are not supplied
-		// Just for this demo, in real life, once can adopt other solutions (e.g. location from IP...)
+		// Just for this demo, in real life, one can adopt other solutions (e.g. location from IP...)
 		searchParam.LatLong = fmt.Sprintf("%.6f,%.6f", fallbackLat, fallbackLng)
 	}
 	// Get venues suggestions
-	miniVenues, _, err := client.Venues.SuggestCompletion(searchParam)
+	miniVenues, _, err := f.fsClient.Venues.SuggestCompletion(searchParam)
 	if err != nil {
 		return api.Places{}, err
 	}
 
-	places = f.fourSquarePlacesToApiPlacesConverter(miniVenues)
+	places = fourSquarePlacesToApiPlacesConverter(miniVenues)
 	return places, nil
 }
 
@@ -66,19 +76,18 @@ func (f *foursquareProvider) GetPlaceDetails(ctx context.Context, placeId string
 	return api.PlaceDetails{ID: placeId, Name: "John Smith", SomeText: "Endpoint Not implemented yet! Take it easy!"}, nil
 }
 
-func (f *foursquareProvider) WithConfig(config ProviderConfig) Provider {
-	f.providerConfig = config
-	return f
+func (f *foursquareProvider) GetProviderLabel() ProviderLabel {
+	return f.providerLabel
 }
 
 // Converter Foursquare Models -> API Models
-func (f *foursquareProvider) fourSquarePlacesToApiPlacesConverter(venues []foursquarego.MiniVenue) api.Places {
+func fourSquarePlacesToApiPlacesConverter(venues []foursquarego.MiniVenue) api.Places {
 	places := api.Places{}
 	for _, venue := range venues {
 		place := api.Place{
 			ID:       venue.ID,
 			Name:     venue.Name,
-			Provider: string(f.providerLabel),
+			Provider: string(FoursquareLabel),
 			URI:      fmt.Sprintf("/fs/%s/details", venue.ID), //kind of hateoas href
 			Address:  getFormattedAddress(venue),
 			Location: &api.Location{
@@ -103,4 +112,3 @@ func getFormattedAddress(venue foursquarego.MiniVenue) string {
 		return ""
 	}
 }
-

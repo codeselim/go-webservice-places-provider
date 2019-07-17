@@ -55,3 +55,8 @@ type PlaceDetails struct {
 	SomeText string `json:"someText"`
 	// All other details
 }
+
+type Status struct {
+	Message    string `json:"message"`
+	StateLabel string `json:"state"` //can be extended and mapped to application status
+}

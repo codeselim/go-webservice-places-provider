@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"app/api"
-	"app/providers"
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/codeselim/go-webservice-places-provider/api"
+	"github.com/codeselim/go-webservice-places-provider/log"
+	"github.com/codeselim/go-webservice-places-provider/providers"
 	"golang.org/x/sync/errgroup"
 	"net/http"
 	"strconv"
@@ -15,10 +15,10 @@ type PlacesHandler struct {
 	placesProviders []providers.Provider
 }
 
-func NewPlacesHandler(providers... providers.Provider) PlacesHandler{
+func NewPlacesHandler(providers ...providers.Provider) PlacesHandler {
 	for _, provider := range providers {
 		if provider == nil {
-			panic("supplied providers cannot be nil")
+			log.GetLogger().Panic("supplied providers cannot be nil")
 		}
 	}
 	return PlacesHandler{
@@ -77,8 +77,12 @@ func (p *PlacesHandler) GetPlaces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *PlacesHandler) GetStatus(w http.ResponseWriter, req *http.Request) {
+	status := api.Status{
+		Message:    "API v1 Alive!",
+		StateLabel: "READY",
+	}
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "ALIVE!")
+	json.NewEncoder(w).Encode(status)
 }
 
 // Parallel execution of providers queries with sync/errGroup for a better error handling
@@ -98,7 +102,8 @@ func (p *PlacesHandler) getPlacesParallel(ctx context.Context, request providers
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return nil, err
+		log.GetLoggerWithContext(ctx).Error(err.Error()) //log error instead and return what is collected
+		return placesResults, nil
 	}
 	return placesResults, nil
 }

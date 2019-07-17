@@ -1,13 +1,16 @@
 package main
 
 import (
-	"app/config"
-	"app/handlers"
-	"app/providers"
 	"flag"
+	"github.com/codeselim/go-webservice-places-provider/config"
+	"github.com/codeselim/go-webservice-places-provider/handlers"
+	"github.com/codeselim/go-webservice-places-provider/log"
+
+	//"github.com/codeselim/go-webservice-places-provider/log"
+	"github.com/codeselim/go-webservice-places-provider/providers"
 	gh "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"log"
+
 	"net/http"
 	"time"
 )
@@ -15,6 +18,7 @@ import (
 const apiVersion = "v1"
 
 var webServerPort string
+var appConfig = config.Config()
 
 func init() {
 	flag.StringVar(&webServerPort, "httpServerPort", config.DefaultHttpServerPort, "Default port to expose on the API. use -httpServerPort=<port_value>")
@@ -23,13 +27,14 @@ func init() {
 func main() {
 	// parse app flags
 	flag.Parse()
+	logger := log.GetLogger()
 
 	// Bootstrap the application
 	// Providers
-	googlePlacesConfig := providers.ProviderConfig{ Timeout: time.Second * 12 } //else config will fall to defaults
-	foursquareConfig := providers.ProviderConfig{ Timeout: time.Second * 13 } // for example...
-	googlePlacesProvider := providers.NewGoogleLocationProvider().WithConfig(googlePlacesConfig)
-	foursquareProvider := providers.NewFoursquareProvider().WithConfig(foursquareConfig)
+	googlePlacesConfig := providers.ProviderConfig{Timeout: time.Second * 12, Language: "en"} //else config will fall to defaults
+	foursquareConfig := providers.ProviderConfig{Timeout: time.Second * 13}                   // for example...
+	googlePlacesProvider := providers.NewGoogleLocationProvider(&googlePlacesConfig)
+	foursquareProvider := providers.NewFoursquareProvider(&foursquareConfig)
 	placesHandler := handlers.NewPlacesHandler(googlePlacesProvider, foursquareProvider) //extend and provide as many providers as you want!
 
 	// Other handlers
@@ -38,8 +43,8 @@ func main() {
 
 	r := mux.NewRouter()
 	r.Use(handlers.RequestIdMiddleware, handlers.LoggingMiddleware)
-	r.HandleFunc("/"+apiVersion+"/places", placesHandler.GetPlaces).Methods("GET")
-	r.HandleFunc("/"+apiVersion+"/status", placesHandler.GetStatus).Methods("GET")
-	log.Print("Serving requests on port: " + webServerPort)
-	log.Fatal(http.ListenAndServe(":"+webServerPort, recoveryHandler(r)))
+	r.HandleFunc("/api/"+apiVersion+"/places", placesHandler.GetPlaces).Methods("GET")
+	r.HandleFunc("/api/"+apiVersion+"/status", placesHandler.GetStatus).Methods("GET")
+	logger.Info("Serving requests on port: " + webServerPort)
+	logger.Fatal(http.ListenAndServe(":"+webServerPort, recoveryHandler(r)))
 }
