@@ -32,7 +32,7 @@ func NewGoogleLocationProvider(providerConfig *ProviderConfig) Provider {
 	client, err := maps.NewClient(maps.WithAPIKey(apiKey), maps.WithHTTPClient(httpClient))
 
 	if err != nil {
-		log.GetLogger().Panic("Couldn't create maps client")
+		log.GetLogger().Panic("Couldn't create maps client, are you sure you provided the needed Google credentials?")
 	}
 
 	return &googlePlacesProvider{
@@ -92,7 +92,7 @@ func googlePlacesToApiPlacesConverter(resp maps.AutocompleteResponse) api.Places
 			Name:     prediction.StructuredFormatting.MainText,
 			ID:       prediction.PlaceID,
 			Location: nil,                                               // no place location details in the returned results
-			URI:      fmt.Sprintf("/gp/%s/details", prediction.PlaceID), //kind of hateoas href
+			URI:      fmt.Sprintf("/gp/details/%s", prediction.PlaceID), //kind of hateoas href
 		}
 		places = append(places, place)
 	}

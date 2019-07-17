@@ -15,7 +15,7 @@ RUN go get github.com/golang/dep/cmd/dep
 #WORKDIR /go/src/
 
 # Install library dependencies
-RUN dep ensure -vendor-only
+RUN dep ensure # -vendor-only
 
 # Copy the entire project and build it
 # This layer is rebuilt when a file changes in the project directory

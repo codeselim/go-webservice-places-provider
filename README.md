@@ -3,9 +3,11 @@
 
 This service, written in [Golang](https://golang.org/), exposes a RESTful API, which provides Places search functionality matching a consumer search parameters. 
 
-This service is written using only basic Go libraries. No heavy frameworks are used, in order to demonstrate different part and concepts of a middlware webservice. 
+This service is written using only basic Go libraries. No heavy frameworks are used in order to demonstrate different part and concepts of a middlware webservice. 
 
 This service is a middleware applications that fetches places from different providers:
+
+Providers:
 
 * Google places's [autocomplete endpoint](https://developers.google.com/places/web-service/autocomplete#place_autocomplete_results) 
 * Foursquare's [venues search endpoint](https://developer.foursquare.com/docs/api/venues/search) 
@@ -16,11 +18,11 @@ The service is extendable and other providers can be added easily. Refer to the 
 
 You need docker installed. The code is shipped with a Docker file responsible for a multi-stage container build. It will build an container containing the application binary statically compiled with all need libraries built in.   
 
-Build an application image locally by running: 
+Build an application image locally by running:  (from the repo root directory)
 
-`cd app`
+`docker build --no-cache . -t places-service ` 
 
-`docker build . -t places-service` 
+:exclamation: Multi-stage builds are a new feature requiring Docker 17.05 or higher!!! 
 
 ## Running the service
 
@@ -38,7 +40,9 @@ Using vanilla Docker you can run it as follows (after you have built your image)
 
 Make sure that you fill your keys' values correctly. Look into the container's logs (stdout) for more info, in case of a malfunction.
 
-By the fault, The container exposes the service on port **8081**. However you can override this behavior by exposing your favorite port and supplying the application the -httpServerPort flag
+By default, The container exposes the service on port **8081**. And the service listen by default on port **8081**.
+
+However you can override this behavior by exposing your favorite port and supplying the application the `-httpServerPort` flag
 
 `docker run  -p <host_external_port>:<internal_port> --expose <internal_port> -e GOOGLE_PLACES_API_KEY='...' -e FOURSQUARE_CLIENT_ID='...' -e FOURSQUARE_CLIENT_SECRET='...' places-service -httpServerPort <internal_port>`      
 
@@ -46,11 +50,13 @@ By the fault, The container exposes the service on port **8081**. However you ca
 
 status endpoint
 -------------- 
-Request **GET host:port/v1/status**
+Request **GET host:port/api/v1/status**
 
-Returns the API status. Such endpoints can be used for readiness/liveness probes. 
+Returns the API status. Such an endpoint can be used for readiness/liveness probes. 
 
-Answer:
+Response:
+
+Content-Type : application/json
 
 Status code 200
 
@@ -61,19 +67,19 @@ Status code 200
 }
 ```
  
-"state" can be only have the value "ACTIVE" for the time being. 
+For the time being, "state" can only have the value "ACTIVE". 
 
 places endpoint
 --------------
-Request **GET host:port/v1/places**
+Request **GET host:port/api/v1/places**
 
 ### Query Parameters
 
 | parameter | example | Description |
 | :---: | :---:   | :---:       |
-| text  | vegan   | **required** a search term to be applied against places names |
-| latitude  | 53.6207518   | **optional** latitude of the user’s location (should be combined with longitude parameter).  |
-| longitude  | 9.9881764   | **optional** longitude of the user’s location (should be combined with latitude parameter).   |
+| text  | vegan   | **required**: a search term to be applied against places names |
+| latitude  | 53.6207518   | **optional**: latitude of the user’s location (should be combined with longitude parameter).  |
+| longitude  | 9.9881764   | **optional**: longitude of the user’s location (should be combined with latitude parameter).   |
 
 ### Responses 
 Content-Type : application/json
@@ -102,8 +108,8 @@ Place:
 Error:
 ```
 {
-	traceId: (string)  Can be a tracing id/correlation id
-	type:    (string)  Error type example "OAuthException"
+	traceId: (string)  A tracing id/correlation id
+	type:    (string)  Error type, example "OAuthException"
 	code:    (int)     Internal application code.
 	message: (string)  Human readable message
 }	
@@ -117,7 +123,7 @@ latitude: 53.6207518
 
 longitude: 9.9881764
 
-GET http://localhost:8081/v1/places?text=car%20rental&latitude=53.6207518&longitude=9.9881764
+GET http://localhost:8081/api/v1/places?text=car%20rental&latitude=53.6207518&longitude=9.9881764
 
 Response: 
 
@@ -155,6 +161,8 @@ This application relies on minimal Golang libraries in order to build the needed
 * Gorilla [MUX](https://github.com/gorilla/mux) for routing and Gorilla [Handlers](https://github.com/gorilla/handlers) for specific http requests handlers (e.g. panic recovery)
 * Google [go client](https://github.com/googlemaps/google-maps-services-go) for Maps Services
 * A [go client](https://github.com/peppage/foursquarego) for Foursquare's API
+* The [Testify](https://github.com/stretchr/testify) package for testing and mocking (unit testing)
+* The [Logrus](https://github.com/sirupsen/logrus) package for a better logging interface
   
 ### Application components
 
@@ -171,9 +179,9 @@ This application relies on minimal Golang libraries in order to build the needed
 
 4) package **api** : hosts the webservice API resources definitions/models. 
 
-5) package **config** : a basic package to load application configuration. Usually (especially in a microservice architecture) your service can be connected to a configuration service. In other setup(s)) config-maps/files can be mounted to your container and can be used for an application configuration (as an example, see Kubernetes'[configmaps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)).
+5) package **config** : a basic package to load application configuration. Usually (especially in a microservice architecture) your service can be connected to a configuration service. In other setup(s) config-maps/files can be mounted to your container and can be used for an application configuration (as an example, see Kubernetes'[configmaps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)).
 
-6) There is a simple Makefile in this repository to automate casual tasks (test, build..). However, it is better to hook a CI tool with this repo (out of this demo'scope)
+6) There is a simple Makefile in this repository to automate casual tasks (test, build..). However, it is better to hook a CI tool with this repo (*out of this demo' scope*)
 
 Note on the implementation:
 
@@ -183,11 +191,11 @@ Note on the implementation:
 
 You can extend this code locally by either:
 
-1) Getting the code and developing locally. Use `go get -u <repo>` 
+1) Getting the code and developing locally. Use `go get -u github.com/codeselim/go-webservice-places-provider` 
 
 You need a local [Golang setup](https://golang.org/doc/install). 
     
-2) or you can simply mount the app as a volume in a golang container 
+2) **Or** you can simply mount the src code directory as a volume in a golang container 
 
 For example:
 
@@ -195,9 +203,9 @@ For example:
 docker run -it --rm -p 8081:8081 --volume "$PWD":/go/src/app --workdir /go/src/app golang:1.11-alpine go run places.go [...other args]
 ```
 
-## notes & future improvements
+## Notes & Future Improvements
 
-* In case you are using local Golang installation with locale paths for project source code: (must be in a src folder) https://github.com/golang/dep/issues/911
-* [Improve]: add additional general handlers like Compress and CORS : straight forward implementation. Look in Gorilla read-made [handlers](https://github.com/gorilla/handlers)
+* [Note]: In case you are using local Golang installation with locale paths for project source code: (must be in a src folder) https://github.com/golang/dep/issues/911
+* [Improve]: Add additional general handlers like Compress : straight forward implementation. Look for example in Gorilla read-made [handlers](https://github.com/gorilla/handlers)
 * [Improve]: Extend tests for a higher code coverage (due to time constraints). The tests can already demonstrate how to test handlers, how to mock dependencies and how to imitate http calls. 
 

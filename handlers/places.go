@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/codeselim/go-webservice-places-provider/api"
+	"github.com/codeselim/go-webservice-places-provider/config"
 	"github.com/codeselim/go-webservice-places-provider/log"
 	"github.com/codeselim/go-webservice-places-provider/providers"
 	"golang.org/x/sync/errgroup"
@@ -72,17 +73,9 @@ func (p *PlacesHandler) GetPlaces(w http.ResponseWriter, r *http.Request) {
 		HandleError(err, w, r)
 	}
 
+	setDefaultHeaders(w)
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(places)
-}
-
-func (p *PlacesHandler) GetStatus(w http.ResponseWriter, req *http.Request) {
-	status := api.Status{
-		Message:    "API v1 Alive!",
-		StateLabel: "READY",
-	}
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(status)
 }
 
 // Parallel execution of providers queries with sync/errGroup for a better error handling
@@ -106,4 +99,10 @@ func (p *PlacesHandler) getPlacesParallel(ctx context.Context, request providers
 		return placesResults, nil
 	}
 	return placesResults, nil
+}
+
+func setDefaultHeaders(w http.ResponseWriter) {
+	for key, value := range config.Config().DefaultHttpHeaders {
+		w.Header().Set(key, value)
+	}
 }

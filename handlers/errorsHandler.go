@@ -16,6 +16,7 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 
 	switch e := err.(type) {
 	case *api.Error:
+		setDefaultHeaders(w)
 		w.WriteHeader(e.StatusCode)
 		json.NewEncoder(w).Encode(e)
 		loggerWithContext.Error(e.Error())
@@ -31,6 +32,8 @@ func HandleError(err error, w http.ResponseWriter, r *http.Request) {
 			Message:    "Oops! something went wrong! Please refer to our support with your traceId",
 		}
 		loggerWithContext.Error(e.Error())
+		setDefaultHeaders(w)
+		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(resp)
 	}
 }

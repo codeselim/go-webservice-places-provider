@@ -5,8 +5,6 @@ import (
 	"github.com/codeselim/go-webservice-places-provider/config"
 	"github.com/codeselim/go-webservice-places-provider/handlers"
 	"github.com/codeselim/go-webservice-places-provider/log"
-
-	//"github.com/codeselim/go-webservice-places-provider/log"
 	"github.com/codeselim/go-webservice-places-provider/providers"
 	gh "github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -18,7 +16,6 @@ import (
 const apiVersion = "v1"
 
 var webServerPort string
-var appConfig = config.Config()
 
 func init() {
 	flag.StringVar(&webServerPort, "httpServerPort", config.DefaultHttpServerPort, "Default port to expose on the API. use -httpServerPort=<port_value>")
@@ -44,7 +41,7 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(handlers.RequestIdMiddleware, handlers.LoggingMiddleware)
 	r.HandleFunc("/api/"+apiVersion+"/places", placesHandler.GetPlaces).Methods("GET")
-	r.HandleFunc("/api/"+apiVersion+"/status", placesHandler.GetStatus).Methods("GET")
+	r.HandleFunc("/api/"+apiVersion+"/status", handlers.GetStatus).Methods("GET")
 	logger.Info("Serving requests on port: " + webServerPort)
 	logger.Fatal(http.ListenAndServe(":"+webServerPort, recoveryHandler(r)))
 }

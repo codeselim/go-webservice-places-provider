@@ -88,7 +88,7 @@ func fourSquarePlacesToApiPlacesConverter(venues []foursquarego.MiniVenue) api.P
 			ID:       venue.ID,
 			Name:     venue.Name,
 			Provider: string(FoursquareLabel),
-			URI:      fmt.Sprintf("/fs/%s/details", venue.ID), //kind of hateoas href
+			URI:      fmt.Sprintf("/fs/details/%s", venue.ID), //kind of hateoas href
 			Address:  getFormattedAddress(venue),
 			Location: &api.Location{
 				Lat: venue.Location.Lat,

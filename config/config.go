@@ -10,6 +10,7 @@ import (
 /**
  * Config package for a very basic configuration management.
  */
+
 const (
 	DefaultSearchRadius         = 100 //km
 	DefaultGooglePlacesLanguage = "en"
@@ -23,6 +24,7 @@ type configSchema struct {
 	GooglePlacesApiKey     string
 	FoursquareClientID     string
 	FoursquareClientSecret string
+	DefaultHttpHeaders     map[string]string
 	//sync.RWMutex : Mutexes can be added if config would be extended to add write actions
 }
 
@@ -37,6 +39,9 @@ func Config() *configSchema {
 			GooglePlacesApiKey:     os.Getenv("GOOGLE_PLACES_API_KEY"),
 			FoursquareClientID:     os.Getenv("FOURSQUARE_CLIENT_ID"),
 			FoursquareClientSecret: os.Getenv("FOURSQUARE_CLIENT_SECRET"),
+			DefaultHttpHeaders: map[string]string{
+				"Access-Control-Allow-Origin": "*",
+			},
 		}
 	})
 	return c

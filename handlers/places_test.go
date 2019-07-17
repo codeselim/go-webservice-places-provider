@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/codeselim/go-webservice-places-provider/api"
 	"github.com/codeselim/go-webservice-places-provider/providers"
 	"github.com/stretchr/testify/assert"
@@ -170,18 +171,58 @@ func TestPlacesHandlerGetPlacesFromAllProviders(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectedPlaces := api.Places{
-		apiPlaceFromFoursquare,
-		apiPlaceFromGoogle,
-	}
+	assert.Equal(t, 2, len(actualPlaces))
 
-	expectedPlacesJson, err := json.Marshal(expectedPlaces)
-	if  err != nil {
+	for _, actualPlace := range actualPlaces {
+		if actualPlace.Provider == "google-provider-label" {
+			assert.Equal(t, apiPlaceFromGoogle, actualPlace)
+		}
+		if actualPlace.Provider == "foursquare-provider-label" {
+			assert.Equal(t, apiPlaceFromFoursquare, actualPlace)
+		}
+	}
+}
+
+func TestPlacesHandlerGetPlacesFromAllProvidersSkipOneProviderErr(t *testing.T) {
+	// create request
+	req, err := http.NewRequest("GET", "/api/v1/places?text=chocolate", nil)
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, 2, len(actualPlaces))
+	googlePlacesProvider := new(mockGooglePlacesProvider)
+	foursquarePlacesProvider := new(mockFourSquarePlacesProvider)
 
-	//verify returned data
-	assert.JSONEq(t, string(expectedPlacesJson), rr.Body.String())
+	errorInProvider := errors.New("some-kind-of-error")
+
+	googlePlacesProvider.On("GetPlacesByQuery", mock.Anything, mock.Anything).Return(api.Places{}, errorInProvider)
+	foursquarePlacesProvider.On("GetPlacesByQuery", mock.Anything, mock.Anything).Return(api.Places{apiPlaceFromFoursquare}, nil)
+
+	placesHandler := NewPlacesHandler(googlePlacesProvider, foursquarePlacesProvider)
+
+	// We create a ResponseRecorder (which satisfies http.ResponseWriter) to record the response.
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(placesHandler.GetPlaces)
+
+	// The handler satisfy http.Handler, so we can call its ServeHTTP method
+	// directly and pass in our Request and ResponseRecorder.
+	handler.ServeHTTP(rr, req)
+
+	// Check the status code is what we expect.
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned unexpected status code: got %v want %v",
+			status, http.StatusBadRequest)
+	}
+
+	//Unmarshal json body in structs and assert!
+	actualPlaces := api.Places{}
+
+	err = json.Unmarshal(rr.Body.Bytes(), &actualPlaces)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 1, len(actualPlaces))
+
+	assert.Equal(t, api.Places{apiPlaceFromFoursquare}, actualPlaces)
 }
